@@ -17,6 +17,23 @@
 #include "kwin.h"
 #include <iostream>
 
+KboxGrid::KboxGrid() :
+  vTitle("inp:"),
+  vEntry(),
+  kIndex("0"),
+  kValue("#")
+{
+  this->attach(vTitle, 0, 0);
+  this->attach(vEntry, 1, 0);
+  this->attach(kIndex, 0, 1);
+  this->attach(kValue, 1, 1);
+  vEntry.set_visibility(false);
+}
+
+KboxGrid::~KboxGrid()
+{
+}
+
 KboxWin::KboxWin()
 : Gtk::ApplicationWindow(),
   m_Box(Gtk::ORIENTATION_VERTICAL)
@@ -108,6 +125,12 @@ KboxWin::KboxWin()
     g_warning("GtkToolbar not found");
   else
     m_Box.pack_start(*toolbar, Gtk::PACK_SHRINK);
+
+  Gtk::Grid* grid = new KboxGrid();
+  if (!grid)
+    g_warning("KboxGrid not found");
+  else
+    m_Box.pack_start(*grid, Gtk::PACK_SHRINK);
 }
 
 KboxWin::~KboxWin()

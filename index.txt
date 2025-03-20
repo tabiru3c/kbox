@@ -1,0 +1,55 @@
+kbox
+
+Contents:
+log
+
+log:
+2025.3.20
+一旦 menu のみにした。ここから kbox の機能を取り込む。
+KboxGrid を別ファイルにするか？別ファイルにするかどうかは
+部品として再利用する可能性で判断するのかな。ありそうな気もする。
+今考える話ではないかも。一旦 kwin 内に追加する。
+今の状態を template として登録しておく。
+
+2025.3.9
+enigma 等
+password 格納用変数を作る
+署名したりとか
+kbox.1
+help
+menu
+
+2025.3.8
+暗号化できた。
+
+2025.3.1
+C で作った暗号化 routine を使ってみる。
+
+2025.2.28
+ooっぽく全面改定
+
+2025.2.24
+class kbEnt
+- k v の出し入れ
+class KVBase
+- load save
+- initialize
+class KboxGrid
+- main part
+class KboxWin
+- on key
+- frontend
+
+2025.2.23
+kbEnt と KboxGrid の間に KVbase を作るか
+
+2025.2.22
+gtkmm 3
+clipboard にセットする所まで
+追加すべき機能は、
+- file in/out
+- enigma
+- build (cmake)
+- man
+- google test
+file in/out 自体はほぼ完了。暗号化が残っている

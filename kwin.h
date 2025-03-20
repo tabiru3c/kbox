@@ -18,6 +18,18 @@
 
 #include <gtkmm.h>
 
+class KboxGrid : public Gtk::Grid
+{
+public:
+    KboxGrid();
+    virtual ~KboxGrid();
+protected:
+    Gtk::Label vTitle;
+    Gtk::Entry vEntry;
+    Gtk::Label kIndex;
+    Gtk::Label kValue;
+};
+
 class KboxWin : public Gtk::ApplicationWindow
 {
 public:
