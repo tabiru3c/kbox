@@ -34,6 +34,17 @@ KboxGrid::~KboxGrid()
 {
 }
 
+bool KboxWin::on_key_press_event( GdkEventKey *event )
+{
+  const gint state3 = GDK_SHIFT_MASK | GDK_CONTROL_MASK | GDK_MOD1_MASK;
+  if (event->keyval == GDK_KEY_q &&
+	(event->state & (state3)) == GDK_CONTROL_MASK){
+    hide();
+    return true;
+  }
+  return Gtk::Window::on_key_press_event(event);
+}
+
 KboxWin::KboxWin()
 : Gtk::ApplicationWindow(),
   m_Box(Gtk::ORIENTATION_VERTICAL)

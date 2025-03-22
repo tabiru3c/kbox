@@ -38,6 +38,8 @@ public:
 
 protected:
   //Signal handlers:
+  bool on_key_press_event( GdkEventKey *event) override;
+
   void on_menu_others();
 
   void on_menu_choices(const Glib::ustring& parameter);
