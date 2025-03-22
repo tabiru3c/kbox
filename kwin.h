@@ -18,16 +18,61 @@
 
 #include <gtkmm.h>
 
+#define KVSIZE 10
+
+class kbEnt {
+public:
+    kbEnt();
+    virtual ~kbEnt();
+    Glib::ustring getK();
+    void setK( Glib::ustring s );
+    Glib::ustring getV();
+    void setV( Glib::ustring s );
+protected:
+private:
+    Glib::ustring kbk;
+    Glib::ustring kbv;
+};
+
+class KVBase {
+public:
+    KVBase();
+    virtual ~KVBase();
+    void setIdx( gint idx );
+    void dspIdx( Gtk::Label *lbl );
+    void dspIdxC( Gtk::Label *lbl );
+    void dspKval( Gtk::Label *lbl );
+    void dspKval( Gtk::Entry *ent );
+    void dspVval( Gtk::Entry *ent );
+    gchar getKoV();
+    void setKoV( gchar c );
+    void setKval( Glib::ustring s );
+    Glib::ustring getVval();
+    void setVval( Glib::ustring s );
+protected:
+private:
+    gint nkv;
+    kbEnt *ke[KVSIZE];
+    gint kidx;
+    gchar kov;
+    gint encflag;	/* 0plain 1encrypt */
+};
+
 class KboxGrid : public Gtk::Grid
 {
 public:
     KboxGrid();
     virtual ~KboxGrid();
+    bool procKey( guint keyval, gint state3 );
+    void vEntered();
 protected:
     Gtk::Label vTitle;
     Gtk::Entry vEntry;
     Gtk::Label kIndex;
     Gtk::Label kValue;
+    Glib::RefPtr<Gtk::Clipboard> m_Clip;
+private:
+    KVBase kvb;
 };
 
 class KboxWin : public Gtk::ApplicationWindow
@@ -48,6 +93,7 @@ protected:
 
   //Child widgets:
   Gtk::Box m_Box;
+  KboxGrid m_Grid;
 
   Glib::RefPtr<Gtk::Builder> m_refBuilder;
 

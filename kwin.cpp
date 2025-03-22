@@ -17,17 +17,168 @@
 #include "kwin.h"
 #include <iostream>
 
+Glib::ustring kbEnt::getK()
+{
+  return kbk;
+}
+
+void kbEnt::setK( Glib::ustring s )
+{
+  kbk = s;
+}
+
+Glib::ustring kbEnt::getV()
+{
+  return kbv;
+}
+
+void kbEnt::setV( Glib::ustring s )
+{
+  kbv = s;
+}
+
+kbEnt::kbEnt()
+{
+  kbk = "key";
+  kbv = "value";
+}
+
+kbEnt::~kbEnt()
+{
+}
+
+void KVBase::setKval( Glib::ustring s )
+{
+  ke[kidx]->setK(s);
+}
+
+Glib::ustring KVBase::getVval()
+{
+  return ke[kidx]->getV();
+}
+
+void KVBase::setVval( Glib::ustring s )
+{
+  ke[kidx]->setV(s);
+}
+
+gchar KVBase::getKoV()
+{
+  return kov;
+}
+
+void KVBase::setKoV( gchar c )
+{
+  kov = c;
+}
+
+void KVBase::setIdx( gint idx )
+{
+  kidx = idx;
+}
+
+void KVBase::dspIdx( Gtk::Label *lbl )
+{
+  lbl->set_text(Glib::ustring::sprintf("%d", kidx));
+}
+
+void KVBase::dspIdxC( Gtk::Label *lbl )
+{
+  lbl->set_text(Glib::ustring::sprintf("%dc", kidx));
+}
+
+void KVBase::dspKval( Gtk::Label *lbl )
+{
+  lbl->set_text(ke[kidx]->getK());
+}
+
+void KVBase::dspKval( Gtk::Entry *ent )
+{
+  ent->set_text(ke[kidx]->getK());
+}
+
+void KVBase::dspVval( Gtk::Entry *ent )
+{
+  ent->set_text(ke[kidx]->getV());
+}
+
+KVBase::KVBase()
+{
+  nkv = KVSIZE;
+  for (gint i=0; i<nkv; i++){
+    ke[i] = new kbEnt();
+  }
+  kidx = 0;
+  kov = '-';
+  encflag = 1;
+}
+
+KVBase::~KVBase()
+{
+}
+
+bool KboxGrid::procKey( guint keyval, gint state3 )
+{
+  gchar kov = kvb.getKoV();
+  if (kov == '-'){
+    if ((keyval >= GDK_KEY_0) && (keyval <= GDK_KEY_9)){
+      gint idx = keyval - GDK_KEY_0;
+      kvb.setIdx(idx);
+      kvb.dspIdx(&kIndex);
+      kvb.dspKval(&kValue);
+      return true;
+    }
+    if (keyval == GDK_KEY_c){
+      m_Clip->set_text(kvb.getVval());
+      kvb.dspIdxC(&kIndex);
+      return true;
+    }
+    if ((keyval == GDK_KEY_k) || (keyval == GDK_KEY_v)){
+      kov = keyval & 0x7f;
+      kvb.setKoV(kov);
+      if (kov == 'k'){
+        vEntry.set_visibility(true);
+        kvb.dspKval(&vEntry);
+      } else {
+        kvb.dspVval(&vEntry);
+      }
+      vEntry.grab_focus();
+      return true;
+    }
+  }
+  return false;
+}
+
+void KboxGrid::vEntered()
+{
+  Glib::ustring s = vEntry.get_text();
+  gchar kov = kvb.getKoV();
+  if (kov == 'k'){
+    kvb.setKval(s);
+    kvb.dspVval(&vEntry);
+    kvb.dspKval(&kValue);
+  } else {
+    kvb.setVval(s);
+  }
+  kvb.setKoV('-');
+  vEntry.set_text("");
+  vEntry.set_visibility(false);
+}
+
 KboxGrid::KboxGrid() :
   vTitle("inp:"),
   vEntry(),
   kIndex("0"),
-  kValue("#")
+  kValue("#"),
+  kvb()
 {
+  m_Clip = Gtk::Clipboard::get();
   this->attach(vTitle, 0, 0);
   this->attach(vEntry, 1, 0);
   this->attach(kIndex, 0, 1);
   this->attach(kValue, 1, 1);
   vEntry.set_visibility(false);
+  vEntry.signal_activate().connect(sigc::mem_fun(*this, &KboxGrid::vEntered));
 }
 
 KboxGrid::~KboxGrid()
@@ -42,12 +193,16 @@ bool KboxWin::on_key_press_event( GdkEventKey *event )
     hide();
     return true;
   }
+  if (m_Grid.procKey(event->keyval, state3)){
+    return true;
+  }
   return Gtk::Window::on_key_press_event(event);
 }
 
 KboxWin::KboxWin()
 : Gtk::ApplicationWindow(),
-  m_Box(Gtk::ORIENTATION_VERTICAL)
+  m_Box(Gtk::ORIENTATION_VERTICAL),
+  m_Grid()
 {
   set_title("Main menu example");
   set_default_size(300, 100);
@@ -137,11 +292,14 @@ KboxWin::KboxWin()
   else
     m_Box.pack_start(*toolbar, Gtk::PACK_SHRINK);
 
+/*
   Gtk::Grid* grid = new KboxGrid();
   if (!grid)
     g_warning("KboxGrid not found");
   else
     m_Box.pack_start(*grid, Gtk::PACK_SHRINK);
+*/
+  m_Box.pack_start(m_Grid, Gtk::PACK_SHRINK);
 }
 
 KboxWin::~KboxWin()

@@ -16,6 +16,7 @@ log:
 2025.3.22
 key event procedure を追加する。一旦 commit しておこう。
 tmp を .gitignore した。
+0-9 k v c
 
 2025.3.20
 一旦 menu のみにした。ここから kbox の機能を取り込む。
