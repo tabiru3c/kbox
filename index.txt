@@ -13,6 +13,9 @@ git log --all --decorate=full --graph --oneline
 * 3ca51a7 Initial commit 2025/3/20
 
 log:
+2025.3.23
+^V で paste したい。
+
 2025.3.22
 key event procedure を追加する。一旦 commit しておこう。
 tmp を .gitignore した。

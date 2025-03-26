@@ -18,7 +18,11 @@
 
 #include <gtkmm.h>
 
+#define KLENMAX 32
+#define VLENMAX 64
 #define KVSIZE 10
+#define FSZMAX 1024
+#define KBOXDAT "kbox.dat"
 
 class kbEnt {
 public:
@@ -28,6 +32,8 @@ public:
     void setK( Glib::ustring s );
     Glib::ustring getV();
     void setV( Glib::ustring s );
+    gint dt2arKV( gchar *bf, gint sz, gint enc );
+    gint ar2dtKV( gchar *bf, gint sz, gint enc );
 protected:
 private:
     Glib::ustring kbk;
@@ -44,11 +50,21 @@ public:
     void dspKval( Gtk::Label *lbl );
     void dspKval( Gtk::Entry *ent );
     void dspVval( Gtk::Entry *ent );
+    void dspPval( Gtk::Entry *ent );
+    void pasteKV( Glib::ustring s );
     gchar getKoV();
     void setKoV( gchar c );
     void setKval( Glib::ustring s );
     Glib::ustring getVval();
     void setVval( Glib::ustring s );
+    void setPval( Glib::ustring s );
+    Glib::ustring rot13( Glib::ustring s );
+    gint loadAll( gchar *buf, gint bsz, Glib::ustring flnm );
+    void dataToArr( gchar *bf, gint sz );
+    bool loadKV();
+    gint saveAll( gchar *buf, gint bsz, Glib::ustring flnm );
+    gint arrToData( gchar *bf, gint sz );
+    bool saveKV();
 protected:
 private:
     gint nkv;
@@ -56,6 +72,7 @@ private:
     gint kidx;
     gchar kov;
     gint encflag;	/* 0plain 1encrypt */
+    Glib::ustring kboxPass;
 };
 
 class KboxGrid : public Gtk::Grid

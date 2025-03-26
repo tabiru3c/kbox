@@ -15,6 +15,7 @@
  */
 
 #include "kwin.h"
+#include <fstream>
 #include <iostream>
 
 Glib::ustring kbEnt::getK()
@@ -35,6 +36,78 @@ Glib::ustring kbEnt::getV()
 void kbEnt::setV( Glib::ustring s )
 {
   kbv = s;
+}
+
+extern "C" {
+int aes_enc( char *src, int slen, char *pwd, char *dst );
+int aes_dec( char *src, int slen, char *pwd, char *dst );
+}
+
+gint kbEnt::dt2arKV( gchar *bf, gint sz, gint enc )
+{
+  gint n = 0;
+  guint16 *lk = (guint16 *)bf;
+  if ((*lk <= KLENMAX) && (*lk < sz-4)){
+    if (enc == 1){
+      gint elv = *(guint16 *)&bf[2+(*lk)];
+      if (elv <= VLENMAX){
+        gchar pbf[256]{0};
+        gchar *pw = new gchar [16];
+        strcpy(pw, "kboxPass");
+        gint plv = aes_dec(&bf[4+(*lk)], elv, pw, pbf);
+        if (plv <= VLENMAX){
+          n = 4+(*lk)+elv;
+          kbk = std::string(&bf[2]).substr(0, *lk);
+          kbv = std::string(pbf).substr(0, plv);
+	}
+        delete[] pw;
+      }
+    } else {
+      guint16 *lv = (guint16 *)&bf[2+(*lk)];
+      if ((*lv <= VLENMAX) && (4+(*lk)+(*lv) < sz)){
+        n = 4+(*lk)+(*lv);
+        kbk = std::string(&bf[2]).substr(0, *lk);
+        kbv = std::string(&bf[4+(*lk)]).substr(0, *lv);
+      }
+    }
+  }
+  return n;
+}
+
+gint kbEnt::ar2dtKV( gchar *bf, gint sz, gint enc )
+{
+  gint n = 0;
+  guint16 lk = kbk.length();
+  if ((lk <= KLENMAX) && (lk < sz-4)){
+    if (enc == 1){
+      gint plv = kbv.length();
+      gchar *pbf = new gchar [plv+1];
+      strcpy(pbf, kbv.c_str());
+      gchar ebf[256];
+      gchar *pw = new gchar [16];
+      strcpy(pw, "kboxPass");
+      guint16 elv = aes_enc(pbf, plv, pw, ebf);
+      if ((elv <= VLENMAX) && (4+lk+elv < sz)){
+        n = 4+lk+elv;
+        *((guint16 *)bf) = lk;
+        memcpy(&bf[2], kbk.c_str(), lk);
+        *((guint16 *)&bf[2+lk]) = elv;
+        memcpy(&bf[4+lk], ebf, elv);
+      }
+      delete[] pw;
+      delete[] pbf;
+    } else {
+      guint16 lv = kbv.length();
+      if ((lv <= VLENMAX) && (4+lk+lv < sz)){
+        n = 4+lk+lv;
+        *((guint16 *)bf) = lk;
+        memcpy(&bf[2], kbk.c_str(), lk);
+        *((guint16 *)&bf[2+lk]) = lv;
+        memcpy(&bf[4+lk], kbv.c_str(), lv);
+      }
+    }
+  }
+  return n;
 }
 
 kbEnt::kbEnt()
@@ -60,6 +133,20 @@ Glib::ustring KVBase::getVval()
 void KVBase::setVval( Glib::ustring s )
 {
   ke[kidx]->setV(s);
+}
+
+void KVBase::setPval( Glib::ustring s )
+{
+  kboxPass = s;
+}
+
+void KVBase::pasteKV( Glib::ustring s )
+{
+  if (kov == 'k'){
+    ke[kidx]->setK(s);
+  } else if (kov == 'v'){
+    ke[kidx]->setV(s);
+  }
 }
 
 gchar KVBase::getKoV()
@@ -102,6 +189,115 @@ void KVBase::dspVval( Gtk::Entry *ent )
   ent->set_text(ke[kidx]->getV());
 }
 
+void KVBase::dspPval( Gtk::Entry *ent )
+{
+  ent->set_text(kboxPass);
+}
+
+Glib::ustring KVBase::rot13( Glib::ustring s )
+{
+  Glib::ustring d = "";
+  gint l = s.length();
+  if (l > 0){
+    gchar *buf = new gchar [l+1];
+    strcpy(buf, s.c_str());
+    gchar c;
+    for (gint i=0; i<l; i++){
+      c = buf[i];
+      if (((c >= 'A') && (c <= 'M')) || ((c >= 'a') && (c <= 'm'))){
+        buf[i] += 13;
+      } else if (((c >= 'N') && (c <= 'Z')) || ((c >= 'n') && (c <= 'z'))){
+        buf[i] -= 13;
+      }
+    }
+    d = std::string(buf);
+    delete[] buf;
+  }
+  return d;
+}
+
+gint KVBase::loadAll( gchar *buf, gint bsz, Glib::ustring flnm )
+{
+  gint sz = 0;
+  try {
+    std::ifstream ifs(flnm, std::ios::binary);
+    ifs.read(buf, bsz);
+    sz = ifs.gcount();
+    ifs.close();
+  } catch (const std::exception& e){
+    std::cerr << "exception: " << e.what() << std::endl;
+  }
+  return sz;
+}
+
+void KVBase::dataToArr( gchar *bf, gint sz )
+{
+  gint n = 0;
+  gint m = 6;
+  for (gint i=0; (i<nkv)&&(m>=6); i++){
+    m = ke[i]->dt2arKV(&bf[n], sz-n, encflag);
+    if (m >= 6){
+      n += m;
+    }
+  }
+}
+
+bool KVBase::loadKV()
+{
+  bool rc = false;
+  Glib::ustring flnm = rot13(ke[0]->getV());
+  gchar buf[FSZMAX]{0};
+  gint sz = loadAll(buf, FSZMAX, flnm);
+  if ((sz > 4+KVSIZE*6) && (strncmp(buf, "kbox", 4) == 0)){
+    dataToArr(&buf[4], sz-4);
+    rc = true;
+  } else {
+    std::cerr << "Invalid data file." << std::endl;
+  }
+  return rc;
+}
+
+gint KVBase::saveAll( gchar *buf, gint bsz, Glib::ustring flnm )
+{
+  gint sz = 0;
+  try {
+    std::ofstream ofs(flnm, std::ios::binary);
+    ofs.write(buf, bsz);
+    sz = ofs.tellp();
+    ofs.close();
+  } catch (const std::exception& e){
+    std::cerr << "exception: " << e.what() << std::endl;
+  }
+  return sz;
+}
+
+gint KVBase::arrToData( gchar *bf, gint sz )
+{
+  gint n = 0;
+  gint m = 6;
+  for (gint i=0; (i<nkv)&&(m>=6); i++){
+    m = ke[i]->ar2dtKV(&bf[n], sz-n, encflag);
+    if (m >= 6){
+      n += m;
+    }
+  }
+  return n;
+}
+
+bool KVBase::saveKV()
+{
+  bool rc = false;
+  gchar buf[FSZMAX]{0};
+  memcpy(buf, "kbox", 4);
+  gint sz = 4 + arrToData(&buf[4], FSZMAX-4);
+  if ((sz > 4+KVSIZE*6) && (sz < FSZMAX)){
+    if (saveAll(buf, sz, KBOXDAT) == sz){
+      rc = true;
+    }
+  }
+  return rc;
+}
+
 KVBase::KVBase()
 {
   nkv = KVSIZE;
@@ -111,13 +307,14 @@ KVBase::KVBase()
   kidx = 0;
   kov = '-';
   encflag = 1;
+  kboxPass = "kboxPass";
 }
 
 KVBase::~KVBase()
 {
 }
 
-bool KboxGrid::procKey( guint keyval, gint state3 )
+bool KboxGrid::procKey( guint keyval, gint state )
 {
   gchar kov = kvb.getKoV();
   if (kov == '-'){
@@ -133,16 +330,30 @@ bool KboxGrid::procKey( guint keyval, gint state3 )
       kvb.dspIdxC(&kIndex);
       return true;
     }
-    if ((keyval == GDK_KEY_k) || (keyval == GDK_KEY_v)){
+    if ((keyval == GDK_KEY_k) || (keyval == GDK_KEY_v) || (keyval == GDK_KEY_p)){
       kov = keyval & 0x7f;
       kvb.setKoV(kov);
       if (kov == 'k'){
         vEntry.set_visibility(true);
         kvb.dspKval(&vEntry);
-      } else {
+      } else if (kov == 'v'){
         kvb.dspVval(&vEntry);
+      } else if (kov == 'p'){
+        kvb.dspPval(&vEntry);
       }
       vEntry.grab_focus();
+      return true;
+    }
+    if (keyval == GDK_KEY_l){
+      if (kvb.loadKV()){
+        kValue.set_text("loaded.");
+      }
+      return true;
+    }
+    if (keyval == GDK_KEY_s){
+      if (kvb.saveKV()){
+        kValue.set_text("saved..");
+      }
       return true;
     }
   }
@@ -157,8 +368,10 @@ void KboxGrid::vEntered()
     kvb.setKval(s);
     kvb.dspVval(&vEntry);
     kvb.dspKval(&kValue);
-  } else {
+  } else if (kov == 'v'){
     kvb.setVval(s);
+  } else if (kov == 'p'){
+    kvb.setPval(s);
   }
   kvb.setKoV('-');
   vEntry.set_text("");
@@ -193,7 +406,7 @@ bool KboxWin::on_key_press_event( GdkEventKey *event )
     hide();
     return true;
   }
-  if (m_Grid.procKey(event->keyval, state3)){
+  if (m_Grid.procKey(event->keyval, event->state)){
     return true;
   }
   return Gtk::Window::on_key_press_event(event);
@@ -219,7 +432,7 @@ KboxWin::KboxWin()
 
   //Edit menu:
   add_action("copy", sigc::mem_fun(*this, &KboxWin::on_menu_others));
-  add_action("paste", sigc::mem_fun(*this, &KboxWin::on_menu_others));
+/*  add_action("paste", sigc::mem_fun(*this, &KboxWin::on_menu_others)); */
   add_action("something", sigc::mem_fun(*this, &KboxWin::on_menu_others));
 
   //Choices menus, to demonstrate Radio items,
