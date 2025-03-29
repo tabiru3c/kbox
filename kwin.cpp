@@ -43,18 +43,22 @@ int aes_enc( char *src, int slen, char *pwd, char *dst );
 int aes_dec( char *src, int slen, char *pwd, char *dst );
 }
 
-gint kbEnt::dt2arKV( gchar *bf, gint sz, gint enc )
+gint kbEnt::dt2arKV( gchar *bf, gint sz, Glib::ustring kpass )
 {
   gint n = 0;
   guint16 *lk = (guint16 *)bf;
   if ((*lk <= KLENMAX) && (*lk < sz-4)){
-    if (enc == 1){
+    if (kpass.length() > 0){
       gint elv = *(guint16 *)&bf[2+(*lk)];
       if (elv <= VLENMAX){
         gchar pbf[256]{0};
-        gchar *pw = new gchar [16];
-        strcpy(pw, "kboxPass");
+        gchar *pw = new gchar [kpass.length()+1];
+        strcpy(pw, kpass.c_str());
         gint plv = aes_dec(&bf[4+(*lk)], elv, pw, pbf);
+        if (plv < 1){
+          delete[] pw;
+          return plv;
+	}
         if (plv <= VLENMAX){
           n = 4+(*lk)+elv;
           kbk = std::string(&bf[2]).substr(0, *lk);
@@ -74,19 +78,23 @@ gint kbEnt::dt2arKV( gchar *bf, gint sz, gint enc )
   return n;
 }
 
-gint kbEnt::ar2dtKV( gchar *bf, gint sz, gint enc )
+gint kbEnt::ar2dtKV( gchar *bf, gint sz, Glib::ustring kpass )
 {
   gint n = 0;
   guint16 lk = kbk.length();
   if ((lk <= KLENMAX) && (lk < sz-4)){
-    if (enc == 1){
+    if (kpass.length() > 0){
       gint plv = kbv.length();
       gchar *pbf = new gchar [plv+1];
       strcpy(pbf, kbv.c_str());
       gchar ebf[256];
-      gchar *pw = new gchar [16];
-      strcpy(pw, "kboxPass");
+      gchar *pw = new gchar [kpass.length()+1];
+      strcpy(pw, kpass.c_str());
       guint16 elv = aes_enc(pbf, plv, pw, ebf);
+      if (elv < 1){
+        delete[] pw;
+        return elv;
+      }
       if ((elv <= VLENMAX) && (4+lk+elv < sz)){
         n = 4+lk+elv;
         *((guint16 *)bf) = lk;
@@ -230,16 +238,17 @@ gint KVBase::loadAll( gchar *buf, gint bsz, Glib::ustring flnm )
   return sz;
 }
 
-void KVBase::dataToArr( gchar *bf, gint sz )
+gint KVBase::dataToArr( gchar *bf, gint sz )
 {
   gint n = 0;
   gint m = 6;
   for (gint i=0; (i<nkv)&&(m>=6); i++){
-    m = ke[i]->dt2arKV(&bf[n], sz-n, encflag);
+    m = ke[i]->dt2arKV(&bf[n], sz-n, kboxPass);
     if (m >= 6){
       n += m;
     }
   }
+  return n;
 }
 
 bool KVBase::loadKV()
@@ -249,8 +258,9 @@ bool KVBase::loadKV()
   gchar buf[FSZMAX]{0};
   gint sz = loadAll(buf, FSZMAX, flnm);
   if ((sz > 4+KVSIZE*6) && (strncmp(buf, "kbox", 4) == 0)){
-    dataToArr(&buf[4], sz-4);
-    rc = true;
+    if (dataToArr(&buf[4], sz-4) > KVSIZE*6){
+      rc = true;
+    }
   } else {
     std::cerr << "Invalid data file." << std::endl;
   }
@@ -276,7 +286,7 @@ gint KVBase::arrToData( gchar *bf, gint sz )
   gint n = 0;
   gint m = 6;
   for (gint i=0; (i<nkv)&&(m>=6); i++){
-    m = ke[i]->ar2dtKV(&bf[n], sz-n, encflag);
+    m = ke[i]->ar2dtKV(&bf[n], sz-n, kboxPass);
     if (m >= 6){
       n += m;
     }
@@ -347,12 +357,16 @@ bool KboxGrid::procKey( guint keyval, gint state )
     if (keyval == GDK_KEY_l){
       if (kvb.loadKV()){
         kValue.set_text("loaded.");
+      } else {
+        kValue.set_text("failed..");
       }
       return true;
     }
     if (keyval == GDK_KEY_s){
       if (kvb.saveKV()){
         kValue.set_text("saved..");
+      } else {
+        kValue.set_text("failed..");
       }
       return true;
     }

@@ -32,8 +32,8 @@ public:
     void setK( Glib::ustring s );
     Glib::ustring getV();
     void setV( Glib::ustring s );
-    gint dt2arKV( gchar *bf, gint sz, gint enc );
-    gint ar2dtKV( gchar *bf, gint sz, gint enc );
+    gint dt2arKV( gchar *bf, gint sz, Glib::ustring kpass );
+    gint ar2dtKV( gchar *bf, gint sz, Glib::ustring kpass );
 protected:
 private:
     Glib::ustring kbk;
@@ -60,7 +60,7 @@ public:
     void setPval( Glib::ustring s );
     Glib::ustring rot13( Glib::ustring s );
     gint loadAll( gchar *buf, gint bsz, Glib::ustring flnm );
-    void dataToArr( gchar *bf, gint sz );
+    gint dataToArr( gchar *bf, gint sz );
     bool loadKV();
     gint saveAll( gchar *buf, gint bsz, Glib::ustring flnm );
     gint arrToData( gchar *bf, gint sz );

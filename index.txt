@@ -13,6 +13,10 @@ git log --all --decorate=full --graph --oneline
 * 3ca51a7 Initial commit 2025/3/20
 
 log:
+2025.3.28
+kboxPass を変数化した。
+c 版 42K に対して 809K か。まだ eni も base64 も実装していないのに。
+
 2025.3.23
 ^V で paste したい。
 
