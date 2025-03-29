@@ -12,6 +12,29 @@ kbox \- key box
 .SH DESCRIPTION
 .I Kbox
 はパスワードを格納し、それをクリップポード経由で出力する。
+・'0'--'9' で指定できる10個のk-v pair を持つ。
+・kbox.dat に k-v pair を保存し、読み込める。
+・kbox.dat は暗号化されている。
+・rot13, qp, ISO-2022-JP, cp932, utf-8, xor, hex, random, ...
+・enigma 暗号
+・base64 符号
+・md5, sha256 各種 hash
+・aes-256-cbc, ...
+
+0--9 select a k-v pair
+k sets a key
+v sets a value
+p sets a password
+l loads a data file
+s saves data into a file
+B/b encode/decode base64
+E/e encode/decode enigma (base64)
+
+r toggles rot13
+x toggles hex
+o toggles oct
+h toggles hash
+
 Whenever possible,
 each file is replaced by one with the extension
 .BR "\&.gz" ,

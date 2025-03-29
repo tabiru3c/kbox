@@ -34,6 +34,8 @@ public:
     void setV( Glib::ustring s );
     gint dt2arKV( gchar *bf, gint sz, Glib::ustring kpass );
     gint ar2dtKV( gchar *bf, gint sz, Glib::ustring kpass );
+    gchar* b64( gchar e );
+    gchar* eni( gchar e, Glib::ustring kp );
 protected:
 private:
     Glib::ustring kbk;
@@ -46,7 +48,7 @@ public:
     virtual ~KVBase();
     void setIdx( gint idx );
     void dspIdx( Gtk::Label *lbl );
-    void dspIdxC( Gtk::Label *lbl );
+    void dspIdxC( Gtk::Label *lbl, gchar c );
     void dspKval( Gtk::Label *lbl );
     void dspKval( Gtk::Entry *ent );
     void dspVval( Gtk::Entry *ent );
@@ -65,6 +67,8 @@ public:
     gint saveAll( gchar *buf, gint bsz, Glib::ustring flnm );
     gint arrToData( gchar *bf, gint sz );
     bool saveKV();
+    gchar* b64( gchar e );
+    gchar* eni( gchar e );
 protected:
 private:
     gint nkv;

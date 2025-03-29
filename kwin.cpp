@@ -18,6 +18,17 @@
 #include <fstream>
 #include <iostream>
 
+#define STATE3 (GDK_SHIFT_MASK|GDK_CONTROL_MASK|GDK_MOD1_MASK)
+#define ROTORSZ 256
+
+struct ENIGBASE {
+char t1[ROTORSZ];
+char t2[ROTORSZ];
+char t3[ROTORSZ];
+char deck[ROTORSZ];
+char buf[13];
+};
+
 Glib::ustring kbEnt::getK()
 {
   return kbk;
@@ -118,6 +129,67 @@ gint kbEnt::ar2dtKV( gchar *bf, gint sz, Glib::ustring kpass )
   return n;
 }
 
+extern "C" {
+int encb64( char *dst, const char *src, int n );
+int decb64( char *dst, const char *src, int n );
+}
+
+gchar* kbEnt::b64( gchar e )
+{
+  gchar *bb = nullptr;
+  size_t p0 = std::string("Bebd").find(e, 0);
+  gint n = kbv.length();
+  if ((n > 0) && (p0 != std::string::npos)){
+    gint m = ((p0 < 2) ? ((n+2)/3)*4 : ((n+3)/4)*3) +1;
+    bb = new gchar [m+n+1];
+    gchar *b0 = &bb[m];
+    strcpy(b0, kbv.c_str());
+    if (p0 < 2){
+      m = encb64(bb, b0, n);
+    } else {
+      m = decb64(bb, b0, n);
+    }
+    bb[m] = '\0';
+  }
+  return bb;
+}
+
+extern "C" {
+void enisetup( struct ENIGBASE *eb, char *pw );
+uint8_t eniconv( struct ENIGBASE *eb, int32_t n, uint8_t *s, uint8_t *d );
+}
+
+gchar* kbEnt::eni( gchar e, Glib::ustring kp )
+{
+  gchar *bb = nullptr;
+  gint n = kbv.length();
+  if ((n > 0) && ((e == 'E') || (e == 'e'))){
+    struct ENIGBASE enib;
+    gchar *pw = new gchar [kp.length()+1];
+    strcpy(pw, kp.c_str());
+    enisetup(&enib, pw);
+    gint m = ((e == 'E') ? ((n+2)/3)*4 : ((n+3)/4)*3) +1;
+    if (e == 'E'){
+      bb = new gchar [m+2*(n+1)];
+      gchar *b0 = &bb[m];
+      gchar *b1 = &b0[n+1];
+      strcpy(b0, kbv.c_str());
+      eniconv(&enib, n, (uint8_t *)b0, (uint8_t *)b1);
+      m = encb64(bb, b1, n);
+    } else {
+      bb = new gchar [2*m+n+1];
+      gchar *b0 = &bb[m];
+      gchar *b1 = &b0[n+1];
+      strcpy(b0, kbv.c_str());
+      m = decb64(b1, b0, n);
+      eniconv(&enib, m, (uint8_t *)b1, (uint8_t *)bb);
+    }
+    delete[] pw;
+    bb[m] = '\0';
+  }
+  return bb;
+}
+
 kbEnt::kbEnt()
 {
   kbk = "key";
@@ -177,9 +249,9 @@ void KVBase::dspIdx( Gtk::Label *lbl )
   lbl->set_text(Glib::ustring::sprintf("%d", kidx));
 }
 
-void KVBase::dspIdxC( Gtk::Label *lbl )
+void KVBase::dspIdxC( Gtk::Label *lbl, gchar c )
 {
-  lbl->set_text(Glib::ustring::sprintf("%dc", kidx));
+  lbl->set_text(Glib::ustring::sprintf("%d%c", kidx, c));
 }
 
 void KVBase::dspKval( Gtk::Label *lbl )
@@ -308,6 +380,16 @@ bool KVBase::saveKV()
   return rc;
 }
 
+gchar* KVBase::b64( gchar e )
+{
+  return ke[kidx]->b64(e);
+}
+
+gchar* KVBase::eni( gchar e )
+{
+  return ke[kidx]->eni(e, kboxPass);
+}
+
 KVBase::KVBase()
 {
   nkv = KVSIZE;
@@ -335,9 +417,27 @@ bool KboxGrid::procKey( guint keyval, gint state )
       kvb.dspKval(&kValue);
       return true;
     }
+    if ((keyval == GDK_KEY_B) || (keyval == GDK_KEY_b)){
+      gchar *dst = kvb.b64(keyval);
+      if (dst != nullptr){
+        m_Clip->set_text(dst);
+        delete[] dst;
+        kvb.dspIdxC(&kIndex, keyval);
+      }
+      return true;
+    }
+    if ((keyval == GDK_KEY_E) || (keyval == GDK_KEY_e)){
+      gchar *dst = kvb.eni(keyval);
+      if (dst != nullptr){
+        m_Clip->set_text(dst);
+        delete[] dst;
+        kvb.dspIdxC(&kIndex, keyval);
+      }
+      return true;
+    }
     if (keyval == GDK_KEY_c){
       m_Clip->set_text(kvb.getVval());
-      kvb.dspIdxC(&kIndex);
+      kvb.dspIdxC(&kIndex, 'c');
       return true;
     }
     if ((keyval == GDK_KEY_k) || (keyval == GDK_KEY_v) || (keyval == GDK_KEY_p)){
@@ -356,17 +456,17 @@ bool KboxGrid::procKey( guint keyval, gint state )
     }
     if (keyval == GDK_KEY_l){
       if (kvb.loadKV()){
-        kValue.set_text("loaded.");
+        kValue.set_text("loaded");
       } else {
-        kValue.set_text("failed..");
+        kValue.set_text("### failed ###");
       }
       return true;
     }
     if (keyval == GDK_KEY_s){
       if (kvb.saveKV()){
-        kValue.set_text("saved..");
+        kValue.set_text("saved");
       } else {
-        kValue.set_text("failed..");
+        kValue.set_text("### failed ###");
       }
       return true;
     }
